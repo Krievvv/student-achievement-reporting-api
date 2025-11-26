@@ -16,6 +16,12 @@ var MongoDB *mongo.Database
 
 func ConnectMongo() {
 	uri := os.Getenv("MONGO_URI")
+	dbName := os.Getenv("MONGO_DB_NAME")
+
+	if uri == "" || dbName == "" {
+		log.Fatal("MONGO_URI or MONGO_DB_NAME is not set in .env")
+	}
+
 	clientOptions := options.Client().ApplyURI(uri)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -29,7 +35,6 @@ func ConnectMongo() {
 		log.Fatal("Failed to ping MongoDB:", err)
 	}
 
-	dbName := os.Getenv("MONGO_DB_NAME")
 	MongoClient = client
 	MongoDB = client.Database(dbName)
 	fmt.Println("Connected to MongoDB")

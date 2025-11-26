@@ -1,8 +1,14 @@
 package config
 
 import (
-	"be_uas/app/repository/postgres"
+	// Repository
+	repoMongo "be_uas/app/repository/mongodb"
+	repoPG "be_uas/app/repository/postgres"
+	
+	// Service
 	"be_uas/app/service"
+	
+	// DB Drivers
 	"be_uas/database"
 	"be_uas/route"
 
@@ -14,19 +20,22 @@ import (
 func NewApp() *fiber.App {
 	app := fiber.New()
 
-	// Register Middleware Global
 	app.Use(cors.New())
-	app.Use(logger.New(NewLoggerConfig())) // logger custom
+	app.Use(logger.New(NewLoggerConfig()))
 
-	// Dependency Injection
-	// Init Repository
-	userRepo := postgres.NewUserRepo(database.DB)
+	// DEPENDENCY INJECTION
 
-	// Init Service
+	// Auth Module
+	userRepo := repoPG.NewUserRepo(database.DB)
 	authService := service.NewAuthService(userRepo)
 
-	// Register Routes
-	route.SetupRoutes(app, authService)
+	// Achievement Module
+	achieveRepoPG := repoPG.NewAchievementRepoPG(database.DB)
+	achieveRepoMongo := repoMongo.NewAchievementRepoMongo(database.MongoDB) // Gunakan var MongoDB
+	achieveService := service.NewAchievementService(achieveRepoPG, achieveRepoMongo)
+
+	// ROUTES
+	route.SetupRoutes(app, authService, achieveService)
 
 	return app
 }

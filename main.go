@@ -8,13 +8,14 @@ import (
 )
 
 func main() {
-	// Load Environment Variables
+	// Load Env
 	config.LoadEnv()
 
-	// Connect to Database
+	// Connect Databases
 	database.ConnectPostgres()
+	database.ConnectMongo() 
 
-	// Setup App (Fiber, Middleware, Routes, DI)
+	// Setup App
 	app := config.NewApp()
 
 	// Start Server

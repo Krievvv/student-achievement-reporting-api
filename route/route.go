@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, authService *service.AuthService) {
+func SetupRoutes(app *fiber.App, authService *service.AuthService, achieveService *service.AchievementService) {
 	api := app.Group("/api/v1")
 
 	// Auth
@@ -15,11 +15,15 @@ func SetupRoutes(app *fiber.App, authService *service.AuthService) {
 	auth.Post("/login", authService.Login)
 	auth.Post("/seed", authService.SeedAdmin)
 
-	// Test Token Route
-	api.Get("/check-token", middleware.AuthRequired(), func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{
-			"message": "Access Granted",
-			"user":    c.Locals("username"),
-		})
-	})
+	// Achievement (Protected) 
+	ach := api.Group("/achievements", middleware.AuthRequired())
+	
+	// Create
+	ach.Post("/", middleware.PermissionCheck("Mahasiswa"), achieveService.CreateAchievement)
+	
+	// Submit
+	ach.Post("/:id/submit", middleware.PermissionCheck("Mahasiswa"), achieveService.SubmitForVerification)
+	
+	// Delete
+	ach.Delete("/:id", middleware.PermissionCheck("Mahasiswa"), achieveService.DeleteAchievement)
 }
