@@ -23,7 +23,6 @@ type LoginRequest struct {
 	Password string `json:"password"`
 }
 
-// Request untuk Seeding (Opsional)
 type SeedRequest struct {
 	RoleID string `json:"role_id"`
 }

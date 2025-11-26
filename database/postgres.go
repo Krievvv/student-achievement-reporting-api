@@ -1,4 +1,4 @@
-package config
+package database
 
 import (
 	"database/sql"
@@ -12,16 +12,14 @@ import (
 var DB *sql.DB
 
 func ConnectPostgres() {
-	var err error
 	dsn := os.Getenv("POSTGRES_DSN")
+	var err error
 	
-	// Open connection
 	DB, err = sql.Open("postgres", dsn)
 	if err != nil {
 		log.Fatal("Failed to open connection to Postgres:", err)
 	}
 
-	// Ping to verify
 	if err = DB.Ping(); err != nil {
 		log.Fatal("Failed to ping Postgres:", err)
 	}
