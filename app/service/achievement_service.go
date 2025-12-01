@@ -121,3 +121,68 @@ func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"message": "Achievement deleted successfully"})
 }
+
+// View Prestasi Mahasiswa Bimbingan
+func (s *AchievementService) GetAdviseeAchievements(c *fiber.Ctx) error {
+	userID := c.Locals("user_id").(string)
+
+	// Ambil list referensi dari Postgres
+	refs, err := s.RepoPG.GetAchievementsByAdvisorID(userID)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch achievements"})
+	}
+
+	// Loop dan ambil detail dari MongoDB (Data Merging)
+	var results []map[string]interface{}
+	ctx := context.Background()
+
+	for _, ref := range refs {
+		detail, _ := s.RepoMongo.FindAchievementByID(ctx, ref.MongoAchievementID)
+		
+		// Gabungkan data untuk response
+		item := map[string]interface{}{
+			"ref_id":     ref.ID,
+			"status":     ref.Status,
+			"created_at": ref.CreatedAt,
+			"detail":     detail, // Data dari Mongo
+		}
+		results = append(results, item)
+	}
+
+	return c.JSON(fiber.Map{"data": results})
+}
+
+// Approve Prestasi
+func (s *AchievementService) VerifyAchievement(c *fiber.Ctx) error {
+	id := c.Params("id") // Ref ID
+	userID := c.Locals("user_id").(string)
+
+	// Update status jadi 'verified'
+	if err := s.RepoPG.UpdateVerification(id, "verified", userID, nil); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to verify achievement"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Achievement verified successfully"})
+}
+
+// Reject Prestasi
+func (s *AchievementService) RejectAchievement(c *fiber.Ctx) error {
+	id := c.Params("id")
+	userID := c.Locals("user_id").(string)
+
+	// Parse body untuk catatan penolakan
+	type RejectReq struct {
+		Note string `json:"note"`
+	}
+	var req RejectReq
+	if err := c.BodyParser(&req); err != nil || req.Note == "" {
+		return c.Status(400).JSON(fiber.Map{"error": "Rejection note is required"})
+	}
+
+	// Update status jadi 'rejected'
+	if err := s.RepoPG.UpdateVerification(id, "rejected", userID, &req.Note); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to reject achievement"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Achievement rejected"})
+}

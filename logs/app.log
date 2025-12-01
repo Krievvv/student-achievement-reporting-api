@@ -1,0 +1,9 @@
+[20:53:20] 401 - POST /api/v1/achievements
+[20:55:19] 401 - POST /api/v1/auth/login
+[20:55:37] 401 - POST /api/v1/auth/login
+[20:58:03] 200 - POST /api/v1/auth/login
+[20:59:49] 201 - POST /api/v1/achievements
+[21:09:06] 200 - POST /api/v1/achievements/ca7dc407-a078-4b44-8e5d-2a8ad7ae1600/submit
+[21:10:46] 201 - POST /api/v1/achievements
+[21:10:49] 201 - POST /api/v1/achievements
+[21:12:11] 200 - DELETE /api/v1/achievements/569df6fe-8397-42b4-861c-dd517d418822

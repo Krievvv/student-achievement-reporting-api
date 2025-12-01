@@ -18,12 +18,13 @@ func SetupRoutes(app *fiber.App, authService *service.AuthService, achieveServic
 	// Achievement (Protected) 
 	ach := api.Group("/achievements", middleware.AuthRequired())
 	
-	// Create
+	// Endpoint Mahasiswa
 	ach.Post("/", middleware.PermissionCheck("Mahasiswa"), achieveService.CreateAchievement)
-	
-	// Submit
 	ach.Post("/:id/submit", middleware.PermissionCheck("Mahasiswa"), achieveService.SubmitForVerification)
-	
-	// Delete
 	ach.Delete("/:id", middleware.PermissionCheck("Mahasiswa"), achieveService.DeleteAchievement)
+
+	// Endpoint Dosen Wali
+	ach.Get("/advisees", middleware.PermissionCheck("Dosen Wali"), achieveService.GetAdviseeAchievements) // View List
+	ach.Post("/:id/verify", middleware.PermissionCheck("Dosen Wali"), achieveService.VerifyAchievement)
+	ach.Post("/:id/reject", middleware.PermissionCheck("Dosen Wali"), achieveService.RejectAchievement)
 }
