@@ -12,6 +12,7 @@ type IAchievementRepoPG interface {
 	GetStudentIDByUserID(userID string) (string, error)
 	GetAchievementsByAdvisorID(userID string) ([]postgres.AchievementReference, error)
 	UpdateVerification(id string, status string, verifiedBy string, rejectionNote *string) error
+	GetAllAchievements(limit, offset int) ([]postgres.AchievementReference, int, error)
 }
 
 type AchievementRepoPG struct {
@@ -88,4 +89,32 @@ func (r *AchievementRepoPG) UpdateVerification(id string, status string, verifie
 	`
 	_, err := r.DB.Exec(query, status, verifiedBy, rejectionNote, id)
 	return err
+}
+
+func (r *AchievementRepoPG) GetAllAchievements(limit, offset int) ([]postgres.AchievementReference, int, error) {
+	// Ambil Data
+	query := `
+		SELECT id, student_id, mongo_achievement_id, status, created_at, updated_at
+		FROM achievement_references
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+	rows, err := r.DB.Query(query, limit, offset)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var achievements []postgres.AchievementReference
+	for rows.Next() {
+		var ar postgres.AchievementReference
+		rows.Scan(&ar.ID, &ar.StudentID, &ar.MongoAchievementID, &ar.Status, &ar.CreatedAt, &ar.UpdatedAt)
+		achievements = append(achievements, ar)
+	}
+
+	// Hitung Total Data (Untuk metadata pagination)
+	var total int
+	r.DB.QueryRow("SELECT COUNT(*) FROM achievement_references").Scan(&total)
+
+	return achievements, total, nil
 }

@@ -9,6 +9,11 @@ import (
 type IUserRepo interface {
 	GetByUsername(username string) (*postgres.User, error)
 	CreateUser(user postgres.User) error
+	GetAllUsers() ([]postgres.User, error)
+	GetUserByID(id string) (*postgres.User, error)
+	UpdateUser(user postgres.User) error
+	DeleteUser(id string) error
+	GetRoleIDByName(roleName string) (string, error) // Helper
 }
 
 type UserRepo struct {
@@ -49,4 +54,54 @@ func (r *UserRepo) CreateUser(user postgres.User) error {
 	`
 	_, err := r.DB.Exec(query, user.Username, user.Email, user.PasswordHash, user.FullName, user.RoleID, user.IsActive, user.CreatedAt)
 	return err
+}
+
+func (r *UserRepo) GetAllUsers() ([]postgres.User, error) {
+	query := `
+		SELECT u.id, u.username, u.email, u.full_name, r.name as role_name, u.is_active, u.created_at
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+		ORDER BY u.created_at DESC
+	`
+	rows, err := r.DB.Query(query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []postgres.User
+	for rows.Next() {
+		var u postgres.User
+		// Scan sesuai urutan query
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.FullName, &u.RoleName, &u.IsActive, &u.CreatedAt); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	return users, nil
+}
+
+func (r *UserRepo) GetUserByID(id string) (*postgres.User, error) {
+	query := `SELECT id, username, email, full_name, role_id, is_active FROM users WHERE id = $1`
+	user := &postgres.User{}
+	err := r.DB.QueryRow(query, id).Scan(&user.ID, &user.Username, &user.Email, &user.FullName, &user.RoleID, &user.IsActive)
+	return user, err
+}
+
+func (r *UserRepo) UpdateUser(user postgres.User) error {
+	query := `UPDATE users SET full_name = $1, is_active = $2, updated_at = NOW() WHERE id = $3`
+	_, err := r.DB.Exec(query, user.FullName, user.IsActive, user.ID)
+	return err
+}
+
+func (r *UserRepo) DeleteUser(id string) error {
+	query := `DELETE FROM users WHERE id = $1`
+	_, err := r.DB.Exec(query, id)
+	return err
+}
+
+func (r *UserRepo) GetRoleIDByName(roleName string) (string, error) {
+	var id string
+	err := r.DB.QueryRow("SELECT id FROM roles WHERE name = $1", roleName).Scan(&id)
+	return id, err
 }

@@ -33,9 +33,10 @@ func NewApp() *fiber.App {
 	achieveRepoPG := repoPG.NewAchievementRepoPG(database.DB)
 	achieveRepoMongo := repoMongo.NewAchievementRepoMongo(database.MongoDB) // Gunakan var MongoDB
 	achieveService := service.NewAchievementService(achieveRepoPG, achieveRepoMongo)
+	adminService := service.NewAdminService(userRepo, achieveRepoPG, achieveRepoMongo)
 
 	// ROUTES
-	route.SetupRoutes(app, authService, achieveService)
+	route.SetupRoutes(app, authService, achieveService, adminService)
 
 	return app
 }

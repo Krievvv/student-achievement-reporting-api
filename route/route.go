@@ -7,7 +7,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-func SetupRoutes(app *fiber.App, authService *service.AuthService, achieveService *service.AchievementService) {
+func SetupRoutes(app *fiber.App, authService *service.AuthService, achieveService *service.AchievementService, adminService *service.AdminService) {
 	api := app.Group("/api/v1")
 
 	// Auth
@@ -27,4 +27,15 @@ func SetupRoutes(app *fiber.App, authService *service.AuthService, achieveServic
 	ach.Get("/advisees", middleware.PermissionCheck("Dosen Wali"), achieveService.GetAdviseeAchievements) // View List
 	ach.Post("/:id/verify", middleware.PermissionCheck("Dosen Wali"), achieveService.VerifyAchievement)
 	ach.Post("/:id/reject", middleware.PermissionCheck("Dosen Wali"), achieveService.RejectAchievement)
+
+	// ADMIN ROUTES
+	admin := api.Group("/admin", middleware.AuthRequired(), middleware.PermissionCheck("Admin"))
+	
+	// Manage Users
+	admin.Post("/users", adminService.CreateUser)
+	admin.Get("/users", adminService.ListUsers)
+	admin.Delete("/users/:id", adminService.DeleteUser)
+
+	// Global View Achievements (Pagination)
+	admin.Get("/achievements", adminService.GetAllAchievements)
 }
