@@ -12,6 +12,7 @@ type TopStudent struct {
 
 type IReportRepoPG interface {
 	GetTopStudents(limit int) ([]TopStudent, error)
+	GetStudentStats(studentID string) (map[string]interface{}, error)
 }
 
 type ReportRepoPG struct {
@@ -49,4 +50,27 @@ func (r *ReportRepoPG) GetTopStudents(limit int) ([]TopStudent, error) {
 		results = append(results, t)
 	}
 	return results, nil
+}
+
+func (r *ReportRepoPG) GetStudentStats(studentID string) (map[string]interface{}, error) {
+    // Hitung total prestasi berdasarkan status
+    query := `
+        SELECT 
+            COUNT(*) FILTER (WHERE status = 'verified') as verified_count,
+            COUNT(*) FILTER (WHERE status = 'submitted') as submitted_count,
+            COUNT(*) FILTER (WHERE status = 'rejected') as rejected_count
+        FROM achievement_references
+        WHERE student_id = $1
+    `
+    var ver, sub, rej int
+    err := r.DB.QueryRow(query, studentID).Scan(&ver, &sub, &rej)
+    if err != nil {
+        return nil, err
+    }
+    
+    return map[string]interface{}{
+        "total_verified": ver,
+        "total_submitted": sub,
+        "total_rejected": rej,
+    }, nil
 }

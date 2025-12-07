@@ -13,7 +13,8 @@ type IUserRepo interface {
 	GetUserByID(id string) (*postgres.User, error)
 	UpdateUser(user postgres.User) error
 	DeleteUser(id string) error
-	GetRoleIDByName(roleName string) (string, error) // Helper
+	GetRoleIDByName(roleName string) (string, error)
+	UpdateUserRole(userID, roleID string) error 
 }
 
 type UserRepo struct {
@@ -104,4 +105,9 @@ func (r *UserRepo) GetRoleIDByName(roleName string) (string, error) {
 	var id string
 	err := r.DB.QueryRow("SELECT id FROM roles WHERE name = $1", roleName).Scan(&id)
 	return id, err
+}
+
+func (r *UserRepo) UpdateUserRole(userID, roleID string) error {
+    _, err := r.DB.Exec("UPDATE users SET role_id = $1, updated_at = NOW() WHERE id = $2", roleID, userID)
+    return err
 }

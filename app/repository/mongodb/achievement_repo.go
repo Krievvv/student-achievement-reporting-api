@@ -14,6 +14,7 @@ type IAchievementRepoMongo interface {
 	InsertAchievement(ctx context.Context, data mongodb.Achievement) (string, error)
 	SoftDeleteAchievement(ctx context.Context, hexID string) error
 	FindAchievementByID(ctx context.Context, hexID string) (*mongodb.Achievement, error)
+	UpdateAchievement(ctx context.Context, hexID string, data mongodb.Achievement) error
 }
 
 type AchievementRepoMongo struct {
@@ -48,4 +49,22 @@ func (r *AchievementRepoMongo) FindAchievementByID(ctx context.Context, hexID st
 		return nil, err
 	}
 	return &achievement, nil
+}
+
+func (r *AchievementRepoMongo) UpdateAchievement(ctx context.Context, hexID string, data mongodb.Achievement) error {
+    objID, _ := primitive.ObjectIDFromHex(hexID)
+    
+    // Kita update field-field content saja
+    update := bson.M{"$set": bson.M{
+        "achievementType": data.AchievementType,
+        "title":           data.Title,
+        "description":     data.Description,
+        "details":         data.Details,
+        "tags":            data.Tags,
+        "points":          data.Points,
+        "updatedAt":       data.UpdatedAt,
+    }}
+    
+    _, err := r.Collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+    return err
 }
