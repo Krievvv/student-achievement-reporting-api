@@ -45,3 +45,17 @@ func (s *ReportService) GetStatistics(c *fiber.Ctx) error {
 		},
 	})
 }
+
+func (s *ReportService) GetStudentReport(c *fiber.Ctx) error {
+    studentID := c.Params("id") // UUID dari tabel Students (bukan Users)
+
+    stats, err := s.ReportPG.GetStudentStats(studentID)
+    if err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "Failed to get report"})
+    }
+
+    return c.JSON(fiber.Map{
+        "student_id": studentID,
+        "statistics": stats,
+    })
+}

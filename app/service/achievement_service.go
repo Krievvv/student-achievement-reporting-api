@@ -26,11 +26,7 @@ func NewAchievementService(pg repoPG.IAchievementRepoPG, mongo repoMongo.IAchiev
 	}
 }
 
-// ==========================================
-// METODE TAMBAHAN (YANG SEBELUMNYA ERROR)
-// ==========================================
-
-// 1. Get My Achievements (List Prestasi Mahasiswa Login)
+// Get Achievements 
 func (s *AchievementService) GetMyAchievements(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 	
@@ -45,9 +41,6 @@ func (s *AchievementService) GetMyAchievements(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to fetch achievements"})
 	}
-
-	// Merge dengan Data Mongo (Opsional: Jika ingin detail di list)
-	// Untuk list biasanya cukup data reference, tapi jika ingin detail:
 	var results []map[string]interface{}
 	ctx := context.Background()
 
@@ -69,7 +62,7 @@ func (s *AchievementService) GetMyAchievements(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": results})
 }
 
-// 2. Get Achievement Detail (Detail Satu Prestasi)
+// Get Achievement Detail (Detail Satu Prestasi)
 func (s *AchievementService) GetAchievementDetail(c *fiber.Ctx) error {
 	id := c.Params("id")
 	
@@ -90,16 +83,13 @@ func (s *AchievementService) GetAchievementDetail(c *fiber.Ctx) error {
 	})
 }
 
-// 3. Upload Attachment
+// Upload Attachment
 func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	// Ambil file dari form-data
 	file, err := c.FormFile("file")
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "File is required"})
 	}
-
-	// Pastikan folder 'uploads' ada secara manual di root project
-	// Simpan file ke server
 	filePath := fmt.Sprintf("./uploads/%s_%s", uuid.New().String(), file.Filename)
 	if err := c.SaveFile(file, filePath); err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to save file"})
@@ -115,7 +105,7 @@ func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	})
 }
 
-// 4. Get Student Achievements (Admin/Dosen View by StudentID)
+// Get Student Achievements (Admin/Dosen View by StudentID)
 func (s *AchievementService) GetStudentAchievements(c *fiber.Ctx) error {
 	studentID := c.Params("id")
 
@@ -143,10 +133,6 @@ func (s *AchievementService) GetStudentAchievements(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{"data": results})
 }
-
-// ==========================================
-// METODE LAMA (CREATE, SUBMIT, VERIFY, ETC)
-// ==========================================
 
 func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 	var req modelMongo.Achievement
@@ -287,4 +273,89 @@ func (s *AchievementService) RejectAchievement(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "Achievement rejected"})
+}
+
+// Update Achievement
+func (s *AchievementService) UpdateAchievement(c *fiber.Ctx) error {
+    id := c.Params("id") // Ref ID
+
+    // 1. Cek Status
+    ref, err := s.RepoPG.GetReferenceByID(id)
+    if err != nil { return c.Status(404).JSON(fiber.Map{"error": "Not found"}) }
+
+    if ref.Status != "draft" {
+        return c.Status(400).JSON(fiber.Map{"error": "Cannot update. Status is not draft"})
+    }
+
+    // 2. Parse Body Baru
+    var req modelMongo.Achievement
+    if err := c.BodyParser(&req); err != nil { return c.Status(400).JSON(fiber.Map{"error": "Invalid Input"}) }
+
+    req.UpdatedAt = time.Now()
+
+    // 3. Update Mongo
+    ctx := context.Background()
+    if err := s.RepoMongo.UpdateAchievement(ctx, ref.MongoAchievementID, req); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "Failed to update content"})
+    }
+
+    return c.JSON(fiber.Map{"message": "Achievement updated"})
+}
+
+// Get History (Menggunakan timestamps dari table references)
+func (s *AchievementService) GetHistory(c *fiber.Ctx) error {
+	id := c.Params("id")
+	ref, err := s.RepoPG.GetReferenceByID(id)
+	if err != nil { 
+		return c.Status(404).JSON(fiber.Map{"error": "Not found"}) 
+	}
+
+	var history []map[string]interface{}
+
+	// 1. Created (Draft)
+	history = append(history, map[string]interface{}{
+		"status":    "draft",
+		"timestamp": ref.CreatedAt,
+		"note":      "Achievement created",
+	})
+
+	// 2. Submitted (Hanya jika ada tanggal submitted_at)
+	if ref.SubmittedAt != nil { 
+		history = append(history, map[string]interface{}{
+			"status":    "submitted",
+			"timestamp": ref.SubmittedAt,
+			"note":      "Submitted for verification",
+		})
+	}
+	
+	// 3. Verified / Rejected (Status Final)
+	if ref.Status == "verified" && ref.VerifiedAt != nil {
+		history = append(history, map[string]interface{}{
+			"status":    "verified",
+			"timestamp": ref.VerifiedAt,
+			"note":      "Verified by Lecturer",
+		})
+	} else if ref.Status == "rejected" && ref.VerifiedAt != nil {
+		history = append(history, map[string]interface{}{
+			"status":    "rejected",
+			"timestamp": ref.VerifiedAt,
+			"note":      "Rejected: " + getString(ref.RejectionNote), // Helper handle nil string
+		})
+	} else if ref.Status == "deleted" {
+		history = append(history, map[string]interface{}{
+			"status":    "deleted",
+			"timestamp": ref.UpdatedAt,
+			"note":      "Achievement deleted",
+		})
+	}
+
+	return c.JSON(fiber.Map{"data": history})
+}
+
+// Helper kecil di file yang sama untuk handle *string agar aman
+func getString(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }

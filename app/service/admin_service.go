@@ -76,6 +76,60 @@ func (s *AdminService) ListUsers(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": users})
 }
 
+// Get User Detail
+func (s *AdminService) GetUserDetail(c *fiber.Ctx) error {
+    id := c.Params("id")
+    user, err := s.RepoPG.GetUserByID(id)
+    if err != nil {
+        return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+    }
+    return c.JSON(fiber.Map{"data": user})
+}
+
+// Update User (Fullname/Active)
+func (s *AdminService) UpdateUser(c *fiber.Ctx) error {
+    id := c.Params("id")
+    type UpdateReq struct {
+        FullName string `json:"full_name"`
+        IsActive bool   `json:"is_active"`
+    }
+    var req UpdateReq
+    if err := c.BodyParser(&req); err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+    }
+
+    user := postgres.User{
+        ID:       id,
+        FullName: req.FullName,
+        IsActive: req.IsActive,
+    }
+    
+    if err := s.RepoPG.UpdateUser(user); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "Failed to update user"})
+    }
+    return c.JSON(fiber.Map{"message": "User updated"})
+}
+
+// Update User Role
+func (s *AdminService) UpdateRole(c *fiber.Ctx) error {
+    id := c.Params("id")
+    type RoleReq struct {
+        RoleName string `json:"role_name"` // Admin kirim nama role baru
+    }
+    var req RoleReq
+    c.BodyParser(&req)
+
+    roleID, err := s.RepoPG.GetRoleIDByName(req.RoleName)
+    if err != nil {
+        return c.Status(400).JSON(fiber.Map{"error": "Invalid Role Name"})
+    }
+
+    if err := s.RepoPG.UpdateUserRole(id, roleID); err != nil {
+        return c.Status(500).JSON(fiber.Map{"error": "Failed to update role"})
+    }
+    return c.JSON(fiber.Map{"message": "Role updated successfully"})
+}
+
 // Delete User
 func (s *AdminService) DeleteUser(c *fiber.Ctx) error {
 	id := c.Params("id")

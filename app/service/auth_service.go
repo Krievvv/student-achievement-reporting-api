@@ -65,7 +65,7 @@ func (s *AuthService) Login(c *fiber.Ctx) error {
 	})
 }
 
-// Helper: Seed Admin
+// Seed Admin
 func (s *AuthService) SeedAdmin(c *fiber.Ctx) error {
 	var req postgres.SeedRequest
 	if err := c.BodyParser(&req); err != nil || req.RoleID == "" {
@@ -89,4 +89,28 @@ func (s *AuthService) SeedAdmin(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
 	}
 	return c.JSON(fiber.Map{"message": "Admin seeded. Password: admin123"})
+}
+
+func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
+    user, err := s.UserRepo.GetByUsername(c.Locals("username").(string)) // username didapat dari claims middleware lama
+    if err != nil {
+        return c.Status(401).JSON(fiber.Map{"error": "Please login again"})
+    }
+
+    // Generate New Token (Logic sama dengan Login)
+    claims := jwt.MapClaims{
+        "user_id":   user.ID,
+        "username":  user.Username,
+        "role":      user.RoleName,
+        "role_id":   user.RoleID,
+        "exp":       time.Now().Add(time.Hour * 24).Unix(),
+    }
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    t, _ := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+
+    return c.JSON(fiber.Map{"token": t})
+}
+
+func (s *AuthService) Logout(c *fiber.Ctx) error {
+    return c.JSON(fiber.Map{"message": "Successfully logged out. Please remove token from client storage."})
 }

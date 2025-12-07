@@ -40,8 +40,28 @@ func (r *AchievementRepoPG) CreateReference(ref postgres.AchievementReference) e
 
 func (r *AchievementRepoPG) GetReferenceByID(id string) (*postgres.AchievementReference, error) {
 	ref := &postgres.AchievementReference{}
-	query := `SELECT id, student_id, mongo_achievement_id, status FROM achievement_references WHERE id = $1`
-	err := r.DB.QueryRow(query, id).Scan(&ref.ID, &ref.StudentID, &ref.MongoAchievementID, &ref.Status)
+	query := `
+		SELECT 
+			id, student_id, mongo_achievement_id, status, 
+			submitted_at, verified_at, verified_by, rejection_note, 
+			created_at, updated_at 
+		FROM achievement_references 
+		WHERE id = $1
+	`
+	
+	err := r.DB.QueryRow(query, id).Scan(
+		&ref.ID, 
+		&ref.StudentID, 
+		&ref.MongoAchievementID, 
+		&ref.Status,
+		&ref.SubmittedAt,   
+		&ref.VerifiedAt,    
+		&ref.VerifiedBy, 
+		&ref.RejectionNote,
+		&ref.CreatedAt, 
+		&ref.UpdatedAt,
+	)
+	
 	if err != nil {
 		return nil, err
 	}
