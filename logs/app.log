@@ -40,3 +40,7 @@
 [16:46:02] 200 - POST /api/v1/auth/login
 [16:50:40] 200 - POST /api/v1/auth/login
 [16:50:48] 200 - POST /api/v1/auth/refresh
+[17:25:40] 401 - POST /api/v1/auth/login
+[17:26:28] 200 - POST /api/v1/auth/login
+[17:27:50] 200 - POST /api/v1/auth/login
+[17:27:59] 200 - POST /api/v1/auth/login
