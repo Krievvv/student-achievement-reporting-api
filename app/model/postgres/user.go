@@ -8,7 +8,7 @@ type User struct {
 	ID           string    `json:"id"`
 	Username     string    `json:"username"`
 	Email        string    `json:"email"`
-	PasswordHash string    `json:"-"` // Tidak dikirim ke JSON response
+	PasswordHash string    `json:"password_hash"` // Tidak dikirim ke JSON response
 	FullName     string    `json:"full_name"`
 	RoleID       string    `json:"role_id"`
 	RoleName     string    `json:"role_name,omitempty"` // Untuk join query

@@ -92,7 +92,8 @@ func (s *AuthService) SeedAdmin(c *fiber.Ctx) error {
 }
 
 func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
-    user, err := s.UserRepo.GetByUsername(c.Locals("username").(string)) // username didapat dari claims middleware lama
+    userID := c.Locals("user_id").(string)
+    user, err := s.UserRepo.GetUserByID(userID) 
     if err != nil {
         return c.Status(401).JSON(fiber.Map{"error": "Please login again"})
     }

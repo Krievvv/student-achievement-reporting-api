@@ -83,10 +83,18 @@ func (r *UserRepo) GetAllUsers() ([]postgres.User, error) {
 }
 
 func (r *UserRepo) GetUserByID(id string) (*postgres.User, error) {
-	query := `SELECT id, username, email, full_name, role_id, is_active FROM users WHERE id = $1`
-	user := &postgres.User{}
-	err := r.DB.QueryRow(query, id).Scan(&user.ID, &user.Username, &user.Email, &user.FullName, &user.RoleID, &user.IsActive)
-	return user, err
+	query := `
+        SELECT u.id, u.username, u.email, u.full_name, u.role_id, u.is_active, r.name as role_name
+        FROM users u
+        JOIN roles r ON u.role_id = r.id
+        WHERE u.id = $1
+    `
+    user := &postgres.User{}
+    err := r.DB.QueryRow(query, id).Scan(
+        &user.ID, &user.Username, &user.Email, &user.FullName, 
+        &user.RoleID, &user.IsActive, &user.RoleName, // Scan RoleName
+    )
+    return user, err
 }
 
 func (r *UserRepo) UpdateUser(user postgres.User) error {
