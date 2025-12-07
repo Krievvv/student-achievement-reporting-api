@@ -85,23 +85,43 @@ func (s *AchievementService) GetAchievementDetail(c *fiber.Ctx) error {
 
 // Upload Attachment
 func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
+	// Ambil ID Prestasi dari Parameter URL
+	id := c.Params("id") // ID Referensi Postgres
+
+	// Cek apakah prestasi ada
+	ref, err := s.RepoPG.GetReferenceByID(id)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "Achievement not found"})
+	}
+
 	// Ambil file dari form-data
 	file, err := c.FormFile("file")
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "File is required"})
 	}
-	filePath := fmt.Sprintf("./uploads/%s_%s", uuid.New().String(), file.Filename)
+
+	// Simpan file fisik ke folder './uploads'
+	// Nama file dibuat unik pakai UUID agar tidak tertimpa
+	uniqueName := fmt.Sprintf("%s_%s", uuid.New().String(), file.Filename)
+	filePath := fmt.Sprintf("./uploads/%s", uniqueName)
+	
 	if err := c.SaveFile(file, filePath); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to save file"})
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to save file to server"})
+	}
+	attachment := modelMongo.Attachment{
+		FileName:   file.Filename,
+		FileURL:    "/uploads/" + uniqueName, 
+		FileType:   file.Header.Get("Content-Type"),
+		UploadedAt: time.Now(),
+	}
+	ctx := context.Background()
+	if err := s.RepoMongo.AddAttachment(ctx, ref.MongoAchievementID, attachment); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to update database record"})
 	}
 
-	// NOTE: Di implementasi nyata, Anda harus mengupdate dokumen MongoDB
-	// untuk menyimpan path file ini ke dalam array 'attachments'.
-	// Untuk saat ini kita return path-nya saja.
-	
 	return c.JSON(fiber.Map{
-		"message": "File uploaded successfully",
-		"url":     filePath,
+		"message": "File uploaded and linked successfully",
+		"data":    attachment,
 	})
 }
 

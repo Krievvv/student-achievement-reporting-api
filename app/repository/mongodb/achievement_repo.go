@@ -15,6 +15,7 @@ type IAchievementRepoMongo interface {
 	SoftDeleteAchievement(ctx context.Context, hexID string) error
 	FindAchievementByID(ctx context.Context, hexID string) (*mongodb.Achievement, error)
 	UpdateAchievement(ctx context.Context, hexID string, data mongodb.Achievement) error
+	AddAttachment(ctx context.Context, hexID string, attachment mongodb.Attachment) error
 }
 
 type AchievementRepoMongo struct {
@@ -67,4 +68,18 @@ func (r *AchievementRepoMongo) UpdateAchievement(ctx context.Context, hexID stri
     
     _, err := r.Collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
     return err
+}
+
+func (r *AchievementRepoMongo) AddAttachment(ctx context.Context, hexID string, attachment mongodb.Attachment) error {
+	objID, _ := primitive.ObjectIDFromHex(hexID)
+
+	// Gunakan operator $push untuk menambah item ke array 'attachments'
+	update := bson.M{
+		"$push": bson.M{
+			"attachments": attachment,
+		},
+	}
+
+	_, err := r.Collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	return err
 }
