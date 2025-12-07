@@ -115,14 +115,18 @@ func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 		UploadedAt: time.Now(),
 	}
 	ctx := context.Background()
-	if err := s.RepoMongo.AddAttachment(ctx, ref.MongoAchievementID, attachment); err != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Failed to update database record"})
-	}
+    if err := s.RepoMongo.AddAttachment(ctx, ref.MongoAchievementID, attachment); err != nil {
+        // PERUBAHAN DISINI: Tampilkan err.Error() agar tahu penyebabnya
+        return c.Status(500).JSON(fiber.Map{
+            "error": "Failed to update database record", 
+            "details": err.Error(), 
+        })
+    }
 
-	return c.JSON(fiber.Map{
-		"message": "File uploaded and linked successfully",
-		"data":    attachment,
-	})
+    return c.JSON(fiber.Map{
+        "message": "File uploaded and linked successfully",
+        "data":    attachment,
+    })
 }
 
 // Get Student Achievements (Admin/Dosen View by StudentID)
@@ -160,16 +164,35 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid Input"})
 	}
 
+	// Ambil Role dan User ID dari Token
+	userRole := c.Locals("role").(string)
 	userID := c.Locals("user_id").(string)
-	studentID, err := s.RepoPG.GetStudentIDByUserID(userID)
-	if err != nil {
-		return c.Status(403).JSON(fiber.Map{"error": "User is not registered as a student"})
+	var studentID string
+	var err error
+
+	if userRole == "Mahasiswa" {
+		studentID, err = s.RepoPG.GetStudentIDByUserID(userID)
+		if err != nil {
+			return c.Status(403).JSON(fiber.Map{"error": "User is not registered as a student"})
+		}
+	} else {
+		// Jika Admin/Dosen: Wajib kirim studentId di body
+		if req.StudentID == "" {
+			return c.Status(400).JSON(fiber.Map{"error": "Admin/Dosen must provide studentId in body"})
+		}
+		studentID = req.StudentID
 	}
 
+	if req.Attachments == nil {
+        req.Attachments = []modelMongo.Attachment{}
+    }
+	
+	// Set data server-side
 	req.StudentID = studentID
 	req.CreatedAt = time.Now()
 	req.UpdatedAt = time.Now()
 
+	// Simpan Detail ke Mongo
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -178,6 +201,7 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to save details to MongoDB"})
 	}
 
+	// Simpan Referensi ke Postgres
 	refID := uuid.New().String()
 	ref := modelPG.AchievementReference{
 		ID:                 refID,

@@ -38,7 +38,7 @@ func SetupRoutes(app *fiber.App,
     ach.Get("/:id", achieveService.GetAchievementDetail)
     ach.Post("/:id/attachments", achieveService.UploadAttachment)
     ach.Get("/:id/history", achieveService.GetHistory)
-    ach.Post("/", middleware.PermissionCheck("Mahasiswa"), achieveService.CreateAchievement)
+    ach.Post("/", achieveService.CreateAchievement)		
     ach.Put("/:id", middleware.PermissionCheck("Mahasiswa"), achieveService.UpdateAchievement) 
     ach.Post("/:id/submit", middleware.PermissionCheck("Mahasiswa"), achieveService.SubmitForVerification)
     ach.Delete("/:id", middleware.PermissionCheck("Mahasiswa"), achieveService.DeleteAchievement)

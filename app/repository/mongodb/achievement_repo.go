@@ -4,6 +4,7 @@ import (
 	"be_uas/app/model/mongodb"
 	"context"
 	"time"
+	"fmt"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -71,15 +72,28 @@ func (r *AchievementRepoMongo) UpdateAchievement(ctx context.Context, hexID stri
 }
 
 func (r *AchievementRepoMongo) AddAttachment(ctx context.Context, hexID string, attachment mongodb.Attachment) error {
-	objID, _ := primitive.ObjectIDFromHex(hexID)
+    // 1. Validasi Format ObjectID
+    objID, err := primitive.ObjectIDFromHex(hexID)
+    if err != nil {
+        return fmt.Errorf("invalid mongodb object id format: %s", hexID) // Return error jelas
+    }
 
-	// Gunakan operator $push untuk menambah item ke array 'attachments'
-	update := bson.M{
-		"$push": bson.M{
-			"attachments": attachment,
-		},
-	}
+    // 2. Lakukan Update ($push)
+    update := bson.M{
+        "$push": bson.M{
+            "attachments": attachment,
+        },
+    }
 
-	_, err := r.Collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
-	return err
+    result, err := r.Collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
+    if err != nil {
+        return err
+    }
+
+    // 3. Cek apakah ada dokumen yang terupdate
+    if result.MatchedCount == 0 {
+        return fmt.Errorf("document not found in mongodb with id: %s", hexID)
+    }
+
+    return nil
 }

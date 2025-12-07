@@ -40,10 +40,10 @@ func AuthRequired() fiber.Handler {
 func PermissionCheck(requiredRole string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role := c.Locals("role").(string)
-		// Admin bypass, else check role
 		if role != requiredRole && role != "Admin" {
 			return c.Status(403).JSON(fiber.Map{"error": "Forbidden: Access denied"})
 		}
+		
 		return c.Next()
 	}
 }
