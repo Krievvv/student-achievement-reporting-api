@@ -18,7 +18,7 @@ func NewReportRepoMongo(db *mongo.Database) IReportRepoMongo {
 	return &ReportRepoMongo{Collection: db.Collection("achievements")}
 }
 
-// Menghitung jumlah prestasi per Tipe (contoh: Kompetisi: 5, Organisasi: 2)
+// Menghitung jumlah prestasi per Tipe 
 func (r *ReportRepoMongo) GetStatsByType(ctx context.Context) ([]bson.M, error) {
 	pipeline := mongo.Pipeline{
 		{{Key: "$group", Value: bson.D{

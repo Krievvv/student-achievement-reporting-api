@@ -3,12 +3,12 @@ package config
 import (
 	// Repository
 	repoMongo "be_uas/app/repository/mongodb"
-	repoPG "be_uas/app/repository/postgres"
-	
+	repoPG "be_uas/app/repository/postgres" 
+
 	// Service
 	"be_uas/app/service"
-	
-	// DB Drivers
+
+	// DB Drivers & Routes
 	"be_uas/database"
 	"be_uas/route"
 
@@ -23,28 +23,36 @@ func NewApp() *fiber.App {
 	app.Use(cors.New())
 	app.Use(logger.New(NewLoggerConfig()))
 
+	// ==================================
 	// DEPENDENCY INJECTION
+	// ==================================
 
-	// Auth Module
+	// 1. Init Repositories (Postgres & Mongo)
 	userRepo := repoPG.NewUserRepo(database.DB)
-	authService := service.NewAuthService(userRepo)
-
-	// Achievement Module
 	achieveRepoPG := repoPG.NewAchievementRepoPG(database.DB)
-	achieveRepoMongo := repoMongo.NewAchievementRepoMongo(database.MongoDB) // Gunakan var MongoDB
-	achieveService := service.NewAchievementService(achieveRepoPG, achieveRepoMongo)
-	adminService := service.NewAdminService(userRepo, achieveRepoPG, achieveRepoMongo)
+	achieveRepoMongo := repoMongo.NewAchievementRepoMongo(database.MongoDB)
 	
-	// Report Repos
 	reportRepoPG := repoPG.NewReportRepoPG(database.DB)
 	reportRepoMongo := repoMongo.NewReportRepoMongo(database.MongoDB)
-	
-	// Report Service
+
+	// ==> PERBAIKAN: Init Academic Repo DI SINI (Sebelum Service)
+	academicRepo := repoPG.NewAcademicRepoPG(database.DB) 
+
+	// 2. Init Services
+	authService := service.NewAuthService(userRepo)
+	achieveService := service.NewAchievementService(achieveRepoPG, achieveRepoMongo)
+	adminService := service.NewAdminService(userRepo, achieveRepoPG, achieveRepoMongo)
 	reportService := service.NewReportService(reportRepoPG, reportRepoMongo)
+	
+	// ==> PERBAIKAN: Init Academic Service DI SINI (Sebelum SetupRoutes)
+	academicService := service.NewAcademicService(academicRepo)
 
-
+	// ==================================
 	// ROUTES
-	route.SetupRoutes(app, authService, achieveService, adminService, reportService)
+	// ==================================
+	
+	// ==> PERBAIKAN: Masukkan academicService sebagai argumen terakhir
+	route.SetupRoutes(app, authService, achieveService, adminService, reportService, academicService)
 
 	return app
 }

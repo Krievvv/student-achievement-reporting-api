@@ -13,6 +13,7 @@ type IAchievementRepoPG interface {
 	GetAchievementsByAdvisorID(userID string) ([]postgres.AchievementReference, error)
 	UpdateVerification(id string, status string, verifiedBy string, rejectionNote *string) error
 	GetAllAchievements(limit, offset int) ([]postgres.AchievementReference, int, error)
+	GetAchievementsByStudentID(studentID string) ([]postgres.AchievementReference, error)
 }
 
 type AchievementRepoPG struct {
@@ -117,4 +118,28 @@ func (r *AchievementRepoPG) GetAllAchievements(limit, offset int) ([]postgres.Ac
 	r.DB.QueryRow("SELECT COUNT(*) FROM achievement_references").Scan(&total)
 
 	return achievements, total, nil
+}
+
+func (r *AchievementRepoPG) GetAchievementsByStudentID(studentID string) ([]postgres.AchievementReference, error) {
+    query := `
+        SELECT id, student_id, mongo_achievement_id, status, created_at, updated_at
+        FROM achievement_references
+        WHERE student_id = $1
+        ORDER BY created_at DESC
+    `
+    rows, err := r.DB.Query(query, studentID)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    var achievements []postgres.AchievementReference
+    for rows.Next() {
+        var ar postgres.AchievementReference
+        if err := rows.Scan(&ar.ID, &ar.StudentID, &ar.MongoAchievementID, &ar.Status, &ar.CreatedAt, &ar.UpdatedAt); err != nil {
+            return nil, err
+        }
+        achievements = append(achievements, ar)
+    }
+    return achievements, nil
 }

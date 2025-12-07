@@ -26,3 +26,5 @@
 [20:18:18] 201 - POST /api/v1/admin/users
 [20:18:56] 403 - GET /api/v1/admin/achievements
 [20:19:10] 200 - GET /api/v1/admin/achievements
+[21:21:33] 200 - POST /api/v1/auth/login
+[21:21:56] 200 - GET /api/v1/reports/statistics
