@@ -103,18 +103,45 @@ func (r *UserRepo) GetAllUsers() ([]postgres.User, error) {
 }
 
 func (r *UserRepo) GetUserByID(id string) (*postgres.User, error) {
+	// 1. Ambil Data User Dasar
 	query := `
-        SELECT u.id, u.username, u.email, u.full_name, u.role_id, u.is_active, r.name as role_name
-        FROM users u
-        JOIN roles r ON u.role_id = r.id
-        WHERE u.id = $1
-    `
-    user := &postgres.User{}
-    err := r.DB.QueryRow(query, id).Scan(
-        &user.ID, &user.Username, &user.Email, &user.FullName, 
-        &user.RoleID, &user.IsActive, &user.RoleName, // Scan RoleName
-    )
-    return user, err
+		SELECT u.id, u.username, u.email, u.full_name, u.role_id, u.is_active, r.name as role_name
+		FROM users u
+		JOIN roles r ON u.role_id = r.id
+		WHERE u.id = $1
+	`
+	user := &postgres.User{}
+	err := r.DB.QueryRow(query, id).Scan(
+		&user.ID, &user.Username, &user.Email, &user.FullName, 
+		&user.RoleID, &user.IsActive, &user.RoleName,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Permissions
+	queryPerms := `
+		SELECT p.name 
+		FROM permissions p
+		JOIN role_permissions rp ON p.id = rp.permission_id
+		WHERE rp.role_id = $1
+	`
+	rows, err := r.DB.Query(queryPerms, user.RoleID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var permissions []string
+	for rows.Next() {
+		var pName string
+		if err := rows.Scan(&pName); err == nil {
+			permissions = append(permissions, pName)
+		}
+	}
+	user.Permissions = permissions
+
+	return user, nil
 }
 
 func (r *UserRepo) UpdateUser(user postgres.User) error {

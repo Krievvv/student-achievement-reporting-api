@@ -23,35 +23,25 @@ func NewApp() *fiber.App {
 	app.Use(cors.New())
 	app.Use(logger.New(NewLoggerConfig()))
 
-	// ==================================
 	// DEPENDENCY INJECTION
-	// ==================================
 
-	// 1. Init Repositories (Postgres & Mongo)
+	// Init Repositories (Postgres & Mongo)
 	userRepo := repoPG.NewUserRepo(database.DB)
 	achieveRepoPG := repoPG.NewAchievementRepoPG(database.DB)
 	achieveRepoMongo := repoMongo.NewAchievementRepoMongo(database.MongoDB)
 	
 	reportRepoPG := repoPG.NewReportRepoPG(database.DB)
 	reportRepoMongo := repoMongo.NewReportRepoMongo(database.MongoDB)
-
-	// ==> PERBAIKAN: Init Academic Repo DI SINI (Sebelum Service)
 	academicRepo := repoPG.NewAcademicRepoPG(database.DB) 
 
-	// 2. Init Services
+	// Init Services
 	authService := service.NewAuthService(userRepo)
 	achieveService := service.NewAchievementService(achieveRepoPG, achieveRepoMongo)
 	adminService := service.NewAdminService(userRepo, achieveRepoPG, achieveRepoMongo)
 	reportService := service.NewReportService(reportRepoPG, reportRepoMongo)
-	
-	// ==> PERBAIKAN: Init Academic Service DI SINI (Sebelum SetupRoutes)
 	academicService := service.NewAcademicService(academicRepo)
 
-	// ==================================
 	// ROUTES
-	// ==================================
-	
-	// ==> PERBAIKAN: Masukkan academicService sebagai argumen terakhir
 	route.SetupRoutes(app, authService, achieveService, adminService, reportService, academicService)
 
 	return app

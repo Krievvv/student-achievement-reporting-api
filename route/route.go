@@ -21,10 +21,7 @@ func SetupRoutes(app *fiber.App,
     auth.Post("/seed", authService.SeedAdmin)
     auth.Post("/refresh", middleware.AuthRequired(), authService.RefreshToken) 
     auth.Post("/logout", authService.Logout) 
-    
-    auth.Get("/profile", middleware.AuthRequired(), func(c *fiber.Ctx) error { 
-        return c.JSON(fiber.Map{"user_id": c.Locals("user_id"), "role": c.Locals("role")}) 
-    })
+    auth.Get("/profile", middleware.AuthRequired(), authService.GetProfile)
 
     // USERS
     admin := api.Group("/users", middleware.AuthRequired(), middleware.PermissionCheck("Admin"))

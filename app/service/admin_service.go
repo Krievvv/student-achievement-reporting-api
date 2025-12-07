@@ -5,11 +5,11 @@ import (
 	repoMongo "be_uas/app/repository/mongodb"
 	repoPG "be_uas/app/repository/postgres"
 	"be_uas/app/model/postgres"
+	"be_uas/utils"
 	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"golang.org/x/crypto/bcrypt"
 )
 
 type AdminService struct {
@@ -33,7 +33,7 @@ func (s *AdminService) CreateUser(c *fiber.Ctx) error {
 		Email    string `json:"email"`
 		Password string `json:"password"`
 		FullName string `json:"full_name"`
-		RoleName string `json:"role_name"` // "Admin", "Mahasiswa", "Dosen Wali"
+		RoleName string `json:"role_name"`
 	}
 
 	var req CreateUserReq
@@ -42,7 +42,7 @@ func (s *AdminService) CreateUser(c *fiber.Ctx) error {
 	}
 
 	// Hash Password
-	bytes, _ := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
+	hash, _ := utils.HashPassword(req.Password)
 
 	// Cari Role ID
 	roleID, err := s.RepoPG.GetRoleIDByName(req.RoleName)
@@ -53,7 +53,7 @@ func (s *AdminService) CreateUser(c *fiber.Ctx) error {
 	user := postgres.User{
 		Username:     req.Username,
 		Email:        req.Email,
-		PasswordHash: string(bytes),
+		PasswordHash: hash,
 		FullName:     req.FullName,
 		RoleID:       roleID,
 		IsActive:     true,

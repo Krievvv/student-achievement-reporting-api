@@ -3,6 +3,7 @@ package service
 import (
 	"be_uas/app/model/postgres"
 	repoPG "be_uas/app/repository/postgres"
+	"be_uas/utils"
 	"os"
 	"time"
 
@@ -26,69 +27,41 @@ func (s *AuthService) Login(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"status": "fail", "message": "Invalid request body"})
 	}
 
-	// Ambil User dari Database
+	// Cek User
 	user, err := s.UserRepo.GetByUsername(req.Username)
 	if err != nil {
-		return c.Status(401).JSON(fiber.Map{"status": "fail", "message": "Invalid username or password"})
+		return c.Status(401).JSON(fiber.Map{"status": "fail", "message": "Invalid credentials"})
 	}
 
-	// Verifikasi Password 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-		return c.Status(401).JSON(fiber.Map{"status": "fail", "message": "Invalid username or password"})
+	// Cek Password 
+	if !utils.CheckPassword(user.PasswordHash, req.Password) {
+		return c.Status(401).JSON(fiber.Map{"status": "fail", "message": "Invalid credentials"})
 	}
 
-	// Cek Status Aktif
 	if !user.IsActive {
-		return c.Status(403).JSON(fiber.Map{"status": "fail", "message": "User account is inactive"})
+		return c.Status(403).JSON(fiber.Map{"status": "fail", "message": "User inactive"})
 	}
 
-	// Generate ACCESS TOKEN 24 Jam
-	// Token ini digunakan untuk setiap request ke API
-	claims := jwt.MapClaims{
-		"user_id":  user.ID,
-		"username": user.Username,
-		"role":     user.RoleName,
-		"role_id":  user.RoleID,
-		"exp":      time.Now().Add(time.Hour * 24).Unix(),
-	}
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	t, err := token.SignedString([]byte(os.Getenv("JWT_SECRET")))
+	// Generate Tokens 
+	t, rt, err := utils.GenerateTokens(user.ID, user.Username, user.RoleName, user.RoleID)
 	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to generate access token"})
+		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to generate tokens"})
 	}
 
-	// 6. Generate REFRESH TOKEN 7 Hari
-	// Token ini disimpan di client untuk mendapatkan access token baru tanpa login ulang
-	refreshClaims := jwt.MapClaims{
-		"user_id": user.ID,
-		"exp":     time.Now().Add(time.Hour * 24 * 7).Unix(),
-	}
-	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
-	rt, err := refreshToken.SignedString([]byte(os.Getenv("JWT_SECRET")))
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to generate refresh token"})
-	}
-
-	// Konstruksi Response Menggunakan DTO (Data Transfer Object)
+	// Response
 	response := postgres.LoginResponse{
 		Status: "success",
 	}
-	
-	// Isi Data Token
 	response.Data.Token = t
 	response.Data.RefreshToken = rt
-	
-	// Data User (Mapping dari Entity DB ke DTO Response)
 	response.Data.User = postgres.UserDetail{
-		ID:       user.ID,
-		Username: user.Username,
-		FullName: user.FullName,
-		Role:     user.RoleName,
-		// Contoh permission statis (bisa dikembangkan ambil dari DB)
-		Permissions: []string{"achievement:create", "achievement:read"}, 
+		ID:          user.ID,
+		Username:    user.Username,
+		FullName:    user.FullName,
+		Role:        user.RoleName,
+		Permissions: user.Permissions,
 	}
 
-	// Return JSON Response
 	return c.JSON(response)
 }
 
@@ -141,4 +114,29 @@ func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
 
 func (s *AuthService) Logout(c *fiber.Ctx) error {
     return c.JSON(fiber.Map{"message": "Successfully logged out. Please remove token from client storage."})
+}
+
+func (s *AuthService) GetProfile(c *fiber.Ctx) error {
+	// Ambil user_id dari token (diset oleh middleware)
+	userID := c.Locals("user_id").(string)
+
+	// Ambil data lengkap dari DB
+	user, err := s.UserRepo.GetUserByID(userID)
+	if err != nil {
+		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
+	}
+
+	// Return data lengkap sesuai SRS (tanpa password hash)
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"user": postgres.UserDetail{
+				ID:          user.ID,
+				Username:    user.Username,
+				FullName:    user.FullName,
+				Role:        user.RoleName,
+				Permissions: user.Permissions,
+			},
+		},
+	})
 }
