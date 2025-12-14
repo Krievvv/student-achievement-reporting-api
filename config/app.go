@@ -1,14 +1,9 @@
 package config
 
 import (
-	// Repository
 	repoMongo "be_uas/app/repository/mongodb"
 	repoPG "be_uas/app/repository/postgres" 
-
-	// Service
 	"be_uas/app/service"
-
-	// DB Drivers & Routes
 	"be_uas/database"
 	"be_uas/route"
 
@@ -22,8 +17,6 @@ func NewApp() *fiber.App {
 
 	app.Use(cors.New())
 	app.Use(logger.New(NewLoggerConfig()))
-
-	// DEPENDENCY INJECTION
 
 	// Init Repositories (Postgres & Mongo)
 	userRepo := repoPG.NewUserRepo(database.DB)
@@ -42,7 +35,7 @@ func NewApp() *fiber.App {
 	academicService := service.NewAcademicService(academicRepo)
 
 	// ROUTES
-	route.SetupRoutes(app, authService, achieveService, adminService, reportService, academicService)
+	route.SetupRoutes(app, authService, adminService, achieveService, reportService, academicService)
 
 	return app
 }
