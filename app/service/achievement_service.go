@@ -149,10 +149,13 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 		req.Attachments = []modelMongo.Attachment{}
 	}
 
+	if req.Points == 0 {
+		req.Points = 10 
+	}
+
 	req.StudentID = studentID
 	req.CreatedAt = time.Now()
 	req.UpdatedAt = time.Now()
-
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -160,7 +163,6 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Failed to save details to MongoDB"})
 	}
-
 	refID := uuid.New().String()
 	ref := modelPG.AchievementReference{
 		ID:                 refID,
