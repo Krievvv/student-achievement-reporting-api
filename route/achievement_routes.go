@@ -8,7 +8,9 @@ import (
 
 func AchievementRoutes(group fiber.Router, achS *service.AchievementService) {
 	ach := group.Group("/achievements", middleware.AuthRequired())
-
+	
+	ach.Get("/advisees", middleware.PermissionCheck("Dosen Wali"), achS.GetAdviseesAchievements)
+	
 	// Public/Shared Access (Filtered by logic in service)
 	ach.Get("/", achS.GetAllAchievements)
 	ach.Get("/:id", achS.GetAchievementByID)
@@ -22,7 +24,6 @@ func AchievementRoutes(group fiber.Router, achS *service.AchievementService) {
 	ach.Post("/:id/attachments", achS.UploadAttachment)
 
 	// Dosen Wali Actions
-	ach.Get("/advisees", middleware.PermissionCheck("Dosen Wali"), achS.GetAdviseesAchievements)
 	ach.Post("/:id/verify", middleware.PermissionCheck("Dosen Wali"), achS.VerifyAchievement)
 	ach.Post("/:id/reject", middleware.PermissionCheck("Dosen Wali"), achS.RejectAchievement)
 }
