@@ -20,7 +20,17 @@ func NewReportService(pg repoPG.IReportRepoPG, mongo repoMongo.IReportRepoMongo)
 	}
 }
 
-// FR-011: Get Global Statistics
+// Get Global Statistics
+
+// GetStatistics godoc
+// @Summary      Get Global Statistics
+// @Description  Mendapatkan data statistik untuk Dashboard: total prestasi per tipe (untuk Pie Chart) dan Top 5 Mahasiswa (Leaderboard).
+// @Tags         Reports
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object} map[string]interface{} "Format: {message: string, data: {achievements_by_type: Array, top_students: Array}}"
+// @Failure      500  {object} map[string]interface{}
+// @Router       /reports/statistics [get]
 func (s *ReportService) GetStatistics(c *fiber.Ctx) error {
 	ctx := context.Background()
 
@@ -46,6 +56,16 @@ func (s *ReportService) GetStatistics(c *fiber.Ctx) error {
 	})
 }
 
+// GetStudentReport godoc
+// @Summary      Get Student Statistics
+// @Description  Melihat statistik prestasi spesifik untuk satu mahasiswa (Total Verified, Submitted, Rejected)
+// @Tags         Reports
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Student UUID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Failure      500  {object} map[string]interface{}
+// @Router       /reports/student/{id} [get]
 func (s *ReportService) GetStudentReport(c *fiber.Ctx) error {
     studentID := c.Params("id") // UUID dari tabel Students (bukan Users)
 

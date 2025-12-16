@@ -5,6 +5,8 @@ import (
     "be_uas/middleware"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/gofiber/swagger" 
+	_ "be_uas/docs"
 )
 
 func SetupRoutes(app *fiber.App, 
@@ -15,6 +17,11 @@ func SetupRoutes(app *fiber.App,
 	acadS *service.AcademicService) {
 	
 	app.Use(logger.New())
+
+	app.Get("/", func(c *fiber.Ctx) error {
+        return c.Redirect("/swagger/index.html")
+    })
+	app.Get("/swagger/*", swagger.HandlerDefault)
 
 	api := app.Group("/api/v1")
 

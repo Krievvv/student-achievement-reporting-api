@@ -26,7 +26,16 @@ func NewAdminService(userRepo repoPG.IUserRepo, achRepo repoPG.IAchievementRepoP
 	}
 }
 
-// Create User (Bisa set Role)
+// CreateUser godoc
+// @Summary      Create New User
+// @Description  Admin membuat user baru (Dosen/Mahasiswa/Admin)
+// @Tags         Users (Admin)
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        request body map[string]interface{} true "User Data"
+// @Success      201  {object} map[string]interface{}
+// @Router       /users [post]
 func (s *AdminService) CreateUser(c *fiber.Ctx) error {
 	type CreateUserReq struct {
 		Username string `json:"username"`
@@ -68,6 +77,15 @@ func (s *AdminService) CreateUser(c *fiber.Ctx) error {
 }
 
 // Get All Users
+
+// ListUsers godoc
+// @Summary      Get All Users
+// @Description  Melihat daftar semua user
+// @Tags         Users (Admin)
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {array} postgres.User
+// @Router       /users [get]
 func (s *AdminService) ListUsers(c *fiber.Ctx) error {
 	users, err := s.RepoPG.GetAllUsers()
 	if err != nil {
@@ -77,6 +95,16 @@ func (s *AdminService) ListUsers(c *fiber.Ctx) error {
 }
 
 // Get User Detail
+
+// GetUserDetail godoc
+// @Summary      Get User Detail
+// @Description  Melihat detail user berdasarkan ID
+// @Tags         Users (Admin)
+// @Security     BearerAuth
+// @Param        id   path      string  true  "User ID"
+// @Produce      json
+// @Success      200  {object} postgres.User
+// @Router       /users/{id} [get]
 func (s *AdminService) GetUserDetail(c *fiber.Ctx) error {
     id := c.Params("id")
     user, err := s.RepoPG.GetUserByID(id)
@@ -87,6 +115,17 @@ func (s *AdminService) GetUserDetail(c *fiber.Ctx) error {
 }
 
 // Update User (Fullname/Active)
+
+// UpdateUser godoc
+// @Summary      Update User Info
+// @Description  Update nama lengkap atau status aktif user
+// @Tags         Users (Admin)
+// @Security     BearerAuth
+// @Param        id   path      string  true  "User ID"
+// @Param        body body      map[string]interface{} true "Update Data"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Router       /users/{id} [put]
 func (s *AdminService) UpdateUser(c *fiber.Ctx) error {
     id := c.Params("id")
     type UpdateReq struct {
@@ -111,6 +150,17 @@ func (s *AdminService) UpdateUser(c *fiber.Ctx) error {
 }
 
 // Update User Role
+
+// UpdateRole godoc
+// @Summary      Update User Role
+// @Description  Mengubah role user
+// @Tags         Users (Admin)
+// @Security     BearerAuth
+// @Param        id   path      string  true  "User ID"
+// @Param        body body      map[string]interface{} true "Role Name"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Router       /users/{id}/role [put]
 func (s *AdminService) UpdateRole(c *fiber.Ctx) error {
     id := c.Params("id")
     type RoleReq struct {
@@ -131,6 +181,16 @@ func (s *AdminService) UpdateRole(c *fiber.Ctx) error {
 }
 
 // Delete User
+
+// DeleteUser godoc
+// @Summary      Delete User
+// @Description  Menghapus user permanen
+// @Tags         Users (Admin)
+// @Security     BearerAuth
+// @Param        id   path      string  true  "User ID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Router       /users/{id} [delete]
 func (s *AdminService) DeleteUser(c *fiber.Ctx) error {
 	id := c.Params("id")
 	if err := s.RepoPG.DeleteUser(id); err != nil {
@@ -140,6 +200,19 @@ func (s *AdminService) DeleteUser(c *fiber.Ctx) error {
 }
 
 // View All Achievements (Global + Pagination)
+
+// GetAllAchievements godoc
+// @Summary      Get All Achievements (Admin)
+// @Description  Admin melihat daftar semua prestasi mahasiswa dengan pagination (Gabungan data Postgres & Mongo)
+// @Tags         Achievements (Admin)
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        page   query     int     false  "Page Number" default(1)
+// @Param        limit  query     int     false  "Items per Page" default(10)
+// @Success      200  {object}  map[string]interface{} "Structure: {data: [], meta: {page, limit, total_data, total_page}}"
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /achievements/all [get]
 func (s *AdminService) GetAllAchievements(c *fiber.Ctx) error {
 	// Ambil Query params page & limit
 	page, _ := strconv.Atoi(c.Query("page", "1"))

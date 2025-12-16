@@ -1,0 +1,983 @@
+basePath: /api/v1
+definitions:
+  mongodb.Achievement:
+    properties:
+      achievementType:
+        type: string
+      attachments:
+        description: Array of Objects
+        items:
+          $ref: '#/definitions/mongodb.Attachment'
+        type: array
+      createdAt:
+        type: string
+      deletedAt:
+        description: Soft Delete support
+        type: string
+      description:
+        type: string
+      details:
+        additionalProperties: true
+        type: object
+      id:
+        type: string
+      points:
+        description: Number (Poin prestasi)
+        type: integer
+      studentId:
+        description: Referensi UUID dari Postgres
+        type: string
+      tags:
+        items:
+          type: string
+        type: array
+      title:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  mongodb.Attachment:
+    properties:
+      fileName:
+        type: string
+      fileType:
+        type: string
+      fileUrl:
+        type: string
+      uploadedAt:
+        type: string
+    type: object
+  postgres.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  postgres.LoginResponse:
+    properties:
+      data:
+        properties:
+          refreshToken:
+            type: string
+          token:
+            type: string
+          user:
+            allOf:
+            - $ref: '#/definitions/postgres.UserDetail'
+            description: Nested struct
+        type: object
+      status:
+        type: string
+    type: object
+  postgres.User:
+    properties:
+      created_at:
+        type: string
+      email:
+        type: string
+      full_name:
+        type: string
+      id:
+        type: string
+      is_active:
+        type: boolean
+      password_hash:
+        description: Tidak dikirim ke JSON response
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role_id:
+        type: string
+      role_name:
+        description: Untuk join query
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+  postgres.UserDetail:
+    properties:
+      fullName:
+        type: string
+      id:
+        type: string
+      permissions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:3000
+info:
+  contact:
+    email: support@univ.ac.id
+    name: Tim Pengembang
+  description: API untuk pelaporan dan verifikasi prestasi mahasiswa.
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: Student Achievement Reporting API
+  version: "1.0"
+paths:
+  /achievements:
+    get:
+      description: Mahasiswa melihat daftar prestasi miliknya sendiri (Gabungan data
+        PostgreSQL & MongoDB)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Data berisi array prestasi: id, status, detail (dari mongo)'
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: 'Error: User is not a student'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 'Error: Failed to fetch achievements'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get My Achievements
+      tags:
+      - Achievements
+    post:
+      consumes:
+      - application/json
+      description: Mahasiswa input prestasi, atau Admin inputkan untuk mahasiswa
+      parameters:
+      - description: Achievement Data
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/mongodb.Achievement'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create Achievement (Draft)
+      tags:
+      - Achievements
+  /achievements/{id}:
+    delete:
+      description: Menghapus prestasi secara soft-delete. Hanya bisa dilakukan jika
+        status masih 'draft'.
+      parameters:
+      - description: Achievement Ref ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 'Error: Only draft can be deleted'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 'Error: Unauthorized'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 'Error: Not found'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 'Error: Server failure'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete Draft Achievement
+      tags:
+      - Achievements
+    get:
+      consumes:
+      - application/json
+      description: Melihat detail lengkap prestasi (Menggabungkan data Reference dari
+        Postgres dan Detail Konten dari MongoDB)
+      parameters:
+      - description: Achievement Reference ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Structure: {data: {ref: ReferenceObj, detail: MongoObj}}'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Achievement Detail
+      tags:
+      - Achievements
+    put:
+      consumes:
+      - application/json
+      description: Mengubah data konten prestasi. Hanya diizinkan jika status prestasi
+        masih 'draft'.
+      parameters:
+      - description: Achievement Ref ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Data Update (Title, Description, Details, etc)
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/mongodb.Achievement'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'message: Achievement updated'
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: 'Error: Invalid Input atau Status bukan Draft'
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: 'Error: Unauthorized'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: 'Error: Not found'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: 'Error: Internal Server Error'
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Achievement (Draft Only)
+      tags:
+      - Achievements
+  /achievements/{id}/attachments:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Upload gambar/pdf untuk prestasi
+      parameters:
+      - description: Achievement Ref ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: File Bukti
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Upload File Bukti
+      tags:
+      - Achievements
+  /achievements/{id}/history:
+    get:
+      description: Melihat timeline riwayat perubahan status prestasi (Draft -> Submitted
+        -> Verified/Rejected)
+      parameters:
+      - description: Achievement Ref ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Response format: {data: [{status, timestamp, note}]}'
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Status History
+      tags:
+      - Achievements
+  /achievements/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      description: Dosen Wali menolak prestasi mahasiswa dengan memberikan catatan
+        (Note) wajib.
+      parameters:
+      - description: Achievement Ref ID (UUID)
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Payload: { ''note'': ''Alasan penolakan...'' }'
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Reject Achievement (Dosen)
+      tags:
+      - Achievements (Dosen)
+  /achievements/{id}/submit:
+    post:
+      description: Mengubah status prestasi dari 'draft' menjadi 'submitted' untuk
+        diverifikasi Dosen Wali.
+      parameters:
+      - description: Achievement Ref ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Submit to Advisor
+      tags:
+      - Achievements
+  /achievements/{id}/verify:
+    post:
+      description: Dosen Wali menyetujui prestasi mahasiswa bimbingannya (Status berubah
+        menjadi 'verified')
+      parameters:
+      - description: Achievement Ref ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Verify Achievement (Dosen)
+      tags:
+      - Achievements (Dosen)
+  /achievements/advisees:
+    get:
+      consumes:
+      - application/json
+      description: Dosen Wali melihat daftar prestasi yang diajukan oleh mahasiswa
+        bimbingannya untuk diverifikasi.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Response format: { data: [ {ref_id, status, detail...} ] }'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Advisee Achievements (Dosen Wali)
+      tags:
+      - Achievements (Dosen)
+  /achievements/all:
+    get:
+      consumes:
+      - application/json
+      description: Admin melihat daftar semua prestasi mahasiswa dengan pagination
+        (Gabungan data Postgres & Mongo)
+      parameters:
+      - default: 1
+        description: Page Number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per Page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Structure: {data: [], meta: {page, limit, total_data, total_page}}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Achievements (Admin)
+      tags:
+      - Achievements (Admin)
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Masuk sebagai Admin, Dosen, atau Mahasiswa
+      parameters:
+      - description: Login Credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/postgres.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/postgres.LoginResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login User
+      tags:
+      - Auth
+  /auth/logout:
+    post:
+      description: Logout user (Client side clear token)
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Logout
+      tags:
+      - Auth
+  /auth/profile:
+    get:
+      description: Mendapatkan detail user yang sedang login beserta permissions
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/postgres.UserDetail'
+      security:
+      - BearerAuth: []
+      summary: Get User Profile
+      tags:
+      - Auth
+  /auth/refresh:
+    post:
+      description: Dapatkan token baru menggunakan Refresh Token (Mekanisme via Header
+        Authorization saat ini)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Refresh Access Token
+      tags:
+      - Auth
+  /lecturers:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan daftar semua dosen yang terdaftar dalam sistem
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Format: {data: [Array of Lecturers]}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Lecturers
+      tags:
+      - Academic
+  /lecturers/{id}/advisees:
+    get:
+      consumes:
+      - application/json
+      description: Melihat daftar mahasiswa yang dibimbing (perwalian) oleh dosen
+        tertentu berdasarkan ID Dosen.
+      parameters:
+      - description: Lecturer UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Returns object {data: [Student Array]}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Lecturer's Advisees
+      tags:
+      - Academic
+  /reports/statistics:
+    get:
+      description: 'Mendapatkan data statistik untuk Dashboard: total prestasi per
+        tipe (untuk Pie Chart) dan Top 5 Mahasiswa (Leaderboard).'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Format: {message: string, data: {achievements_by_type: Array,
+            top_students: Array}}'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Global Statistics
+      tags:
+      - Reports
+  /reports/student/{id}:
+    get:
+      description: Melihat statistik prestasi spesifik untuk satu mahasiswa (Total
+        Verified, Submitted, Rejected)
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Student Statistics
+      tags:
+      - Reports
+  /students:
+    get:
+      description: Mendapatkan daftar semua mahasiswa beserta data akademiknya
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Format: { data: [StudentObjects...] }'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get All Students
+      tags:
+      - Academic
+  /students/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Mendapatkan data lengkap mahasiswa (termasuk program studi & advisor)
+        berdasarkan ID
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Student Detail
+      tags:
+      - Academic
+  /students/{id}/achievements:
+    get:
+      description: Melihat daftar prestasi lengkap (Gabungan data PostgreSQL & MongoDB)
+        milik mahasiswa tertentu berdasarkan Student ID.
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: 'Format: { data: [{ id, status, created_at, detail: {...} }]
+            }'
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get Student's Achievements
+      tags:
+      - Academic
+  /students/{id}/advisor:
+    put:
+      consumes:
+      - application/json
+      description: Admin menugaskan atau mengubah Dosen Wali untuk mahasiswa tertentu
+      parameters:
+      - description: Student UUID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: 'Request Body: { \'
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties:
+            type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update Student Advisor
+      tags:
+      - Academic
+  /users:
+    get:
+      description: Melihat daftar semua user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/postgres.User'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: Get All Users
+      tags:
+      - Users (Admin)
+    post:
+      consumes:
+      - application/json
+      description: Admin membuat user baru (Dosen/Mahasiswa/Admin)
+      parameters:
+      - description: User Data
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create New User
+      tags:
+      - Users (Admin)
+  /users/{id}:
+    delete:
+      description: Menghapus user permanen
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete User
+      tags:
+      - Users (Admin)
+    get:
+      description: Melihat detail user berdasarkan ID
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/postgres.User'
+      security:
+      - BearerAuth: []
+      summary: Get User Detail
+      tags:
+      - Users (Admin)
+    put:
+      description: Update nama lengkap atau status aktif user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update Data
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update User Info
+      tags:
+      - Users (Admin)
+  /users/{id}/role:
+    put:
+      description: Mengubah role user
+      parameters:
+      - description: User ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Role Name
+        in: body
+        name: body
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update User Role
+      tags:
+      - Users (Admin)
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

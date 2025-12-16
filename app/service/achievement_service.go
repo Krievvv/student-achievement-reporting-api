@@ -26,6 +26,16 @@ func NewAchievementService(pg repoPG.IAchievementRepoPG, mongo repoMongo.IAchiev
 	}
 }
 
+// GetAllAchievements godoc
+// @Summary      Get My Achievements
+// @Description  Mahasiswa melihat daftar prestasi miliknya sendiri (Gabungan data PostgreSQL & MongoDB)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object} map[string]interface{} "Data berisi array prestasi: id, status, detail (dari mongo)"
+// @Failure      403  {object} map[string]interface{} "Error: User is not a student"
+// @Failure      500  {object} map[string]interface{} "Error: Failed to fetch achievements"
+// @Router       /achievements [get]
 func (s *AchievementService) GetAllAchievements(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 	
@@ -61,6 +71,18 @@ func (s *AchievementService) GetAllAchievements(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": results})
 }
 
+// GetAchievementByID godoc
+// @Summary      Get Achievement Detail
+// @Description  Melihat detail lengkap prestasi (Menggabungkan data Reference dari Postgres dan Detail Konten dari MongoDB)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id   path      string  true  "Achievement Reference ID (UUID)"
+// @Success      200  {object}  map[string]interface{} "Structure: {data: {ref: ReferenceObj, detail: MongoObj}}"
+// @Failure      404  {object}  map[string]interface{}
+// @Failure      500  {object}  map[string]interface{}
+// @Router       /achievements/{id} [get]
 func (s *AchievementService) GetAchievementByID(c *fiber.Ctx) error {
 	id := c.Params("id")
 	
@@ -79,6 +101,16 @@ func (s *AchievementService) GetAchievementByID(c *fiber.Ctx) error {
 	})
 }
 
+// GetAchievementHistory godoc
+// @Summary      Get Status History
+// @Description  Melihat timeline riwayat perubahan status prestasi (Draft -> Submitted -> Verified/Rejected)
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Achievement Ref ID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{} "Response format: {data: [{status, timestamp, note}]}"
+// @Failure      404  {object} map[string]interface{}
+// @Router       /achievements/{id}/history [get]
 func (s *AchievementService) GetAchievementHistory(c *fiber.Ctx) error {
 	id := c.Params("id")
 	ref, err := s.RepoPG.GetReferenceByID(id)
@@ -122,6 +154,16 @@ func (s *AchievementService) GetAchievementHistory(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": history})
 }
 
+// CreateAchievement godoc
+// @Summary      Create Achievement (Draft)
+// @Description  Mahasiswa input prestasi, atau Admin inputkan untuk mahasiswa
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        body body mongodb.Achievement true "Achievement Data"
+// @Success      201  {object} map[string]interface{}
+// @Router       /achievements [post]
 func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 	var req modelMongo.Achievement
 	if err := c.BodyParser(&req); err != nil {
@@ -185,6 +227,22 @@ func (s *AchievementService) CreateAchievement(c *fiber.Ctx) error {
 }
 
 // Update Achievement
+
+// UpdateAchievement godoc
+// @Summary      Update Achievement (Draft Only)
+// @Description  Mengubah data konten prestasi. Hanya diizinkan jika status prestasi masih 'draft'.
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string               true  "Achievement Ref ID (UUID)"
+// @Param        body  body      mongodb.Achievement  true  "Data Update (Title, Description, Details, etc)"
+// @Success      200   {object}  map[string]interface{}  "message: Achievement updated"
+// @Failure      400   {object}  map[string]interface{}  "Error: Invalid Input atau Status bukan Draft"
+// @Failure      401   {object}  map[string]interface{}  "Error: Unauthorized"
+// @Failure      404   {object}  map[string]interface{}  "Error: Not found"
+// @Failure      500   {object}  map[string]interface{}  "Error: Internal Server Error"
+// @Router       /achievements/{id} [put]
 func (s *AchievementService) UpdateAchievement(c *fiber.Ctx) error {
 	id := c.Params("id")
 	ref, err := s.RepoPG.GetReferenceByID(id)
@@ -207,6 +265,19 @@ func (s *AchievementService) UpdateAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Achievement updated"})
 }
 
+// DeleteAchievement godoc
+// @Summary      Delete Draft Achievement
+// @Description  Menghapus prestasi secara soft-delete. Hanya bisa dilakukan jika status masih 'draft'.
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Achievement Ref ID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Failure      400  {object} map[string]interface{} "Error: Only draft can be deleted"
+// @Failure      401  {object} map[string]interface{} "Error: Unauthorized"
+// @Failure      404  {object} map[string]interface{} "Error: Not found"
+// @Failure      500  {object} map[string]interface{} "Error: Server failure"
+// @Router       /achievements/{id} [delete]
 func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
 	id := c.Params("id")
 	ref, err := s.RepoPG.GetReferenceByID(id)
@@ -231,6 +302,18 @@ func (s *AchievementService) DeleteAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Achievement deleted successfully"})
 }
 
+// SubmitAchievement godoc
+// @Summary      Submit to Advisor
+// @Description  Mengubah status prestasi dari 'draft' menjadi 'submitted' untuk diverifikasi Dosen Wali.
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Achievement Ref ID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Failure      400  {object} map[string]interface{}
+// @Failure      404  {object} map[string]interface{}
+// @Failure      500  {object} map[string]interface{}
+// @Router       /achievements/{id}/submit [post]
 func (s *AchievementService) SubmitAchievement(c *fiber.Ctx) error {
 	id := c.Params("id")
 	ref, err := s.RepoPG.GetReferenceByID(id)
@@ -249,6 +332,17 @@ func (s *AchievementService) SubmitAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Achievement submitted successfully"})
 }
 
+// UploadAttachment godoc
+// @Summary      Upload File Bukti
+// @Description  Upload gambar/pdf untuk prestasi
+// @Tags         Achievements
+// @Security     BearerAuth
+// @Accept       multipart/form-data
+// @Produce      json
+// @Param        id   path      string  true  "Achievement Ref ID"
+// @Param        file formData  file    true  "File Bukti"
+// @Success      200  {object} map[string]interface{}
+// @Router       /achievements/{id}/attachments [post]
 func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	id := c.Params("id")
 	ref, err := s.RepoPG.GetReferenceByID(id)
@@ -286,6 +380,16 @@ func (s *AchievementService) UploadAttachment(c *fiber.Ctx) error {
 	})
 }
 
+// GetAdviseesAchievements godoc
+// @Summary      Get Advisee Achievements (Dosen Wali)
+// @Description  Dosen Wali melihat daftar prestasi yang diajukan oleh mahasiswa bimbingannya untuk diverifikasi.
+// @Tags         Achievements (Dosen)
+// @Accept       json
+// @Produce      json
+// @Security     BearerAuth
+// @Success      200  {object} map[string]interface{} "Response format: { data: [ {ref_id, status, detail...} ] }"
+// @Failure      500  {object} map[string]interface{}
+// @Router       /achievements/advisees [get]
 func (s *AchievementService) GetAdviseesAchievements(c *fiber.Ctx) error {
 	userID := c.Locals("user_id").(string)
 	refs, err := s.RepoPG.GetAchievementsByAdvisorID(userID)
@@ -310,6 +414,16 @@ func (s *AchievementService) GetAdviseesAchievements(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"data": results})
 }
 
+// VerifyAchievement godoc
+// @Summary      Verify Achievement (Dosen)
+// @Description  Dosen Wali menyetujui prestasi mahasiswa bimbingannya (Status berubah menjadi 'verified')
+// @Tags         Achievements (Dosen)
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Achievement Ref ID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Failure      500  {object} map[string]interface{}
+// @Router       /achievements/{id}/verify [post]
 func (s *AchievementService) VerifyAchievement(c *fiber.Ctx) error {
 	id := c.Params("id")
 	userID := c.Locals("user_id").(string)
@@ -321,6 +435,19 @@ func (s *AchievementService) VerifyAchievement(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Achievement verified successfully"})
 }
 
+// RejectAchievement godoc
+// @Summary      Reject Achievement (Dosen)
+// @Description  Dosen Wali menolak prestasi mahasiswa dengan memberikan catatan (Note) wajib.
+// @Tags         Achievements (Dosen)
+// @Security     BearerAuth
+// @Accept       json
+// @Produce      json
+// @Param        id    path      string             true  "Achievement Ref ID (UUID)"
+// @Param        body  body      map[string]string  true  "Payload: { 'note': 'Alasan penolakan...' }"
+// @Success      200   {object}  map[string]interface{}
+// @Failure      400   {object}  map[string]interface{}
+// @Failure      500   {object}  map[string]interface{}
+// @Router       /achievements/{id}/reject [post]
 func (s *AchievementService) RejectAchievement(c *fiber.Ctx) error {
 	id := c.Params("id")
 	userID := c.Locals("user_id").(string)
@@ -348,6 +475,16 @@ func getString(s *string) string {
 	return *s
 }
 
+// GetStudentAchievements godoc
+// @Summary      Get Student's Achievements
+// @Description  Melihat daftar prestasi lengkap (Gabungan data PostgreSQL & MongoDB) milik mahasiswa tertentu berdasarkan Student ID.
+// @Tags         Academic
+// @Security     BearerAuth
+// @Param        id   path      string  true  "Student UUID"
+// @Produce      json
+// @Success      200  {object} map[string]interface{} "Format: { data: [{ id, status, created_at, detail: {...} }] }"
+// @Failure      500  {object} map[string]interface{}
+// @Router       /students/{id}/achievements [get]
 func (s *AchievementService) GetStudentAchievements(c *fiber.Ctx) error {
 	studentID := c.Params("id")
 

@@ -20,7 +20,17 @@ func NewAuthService(userRepo repoPG.IUserRepo) *AuthService {
 	return &AuthService{UserRepo: userRepo}
 }
 
-// Login Logic
+// Login godoc
+// @Summary      Login User
+// @Description  Masuk sebagai Admin, Dosen, atau Mahasiswa
+// @Tags         Auth
+// @Accept       json
+// @Produce      json
+// @Param        request body postgres.LoginRequest true "Login Credentials"
+// @Success      200  {object} postgres.LoginResponse
+// @Failure      400  {object} map[string]interface{}
+// @Failure      401  {object} map[string]interface{}
+// @Router       /auth/login [post]
 func (s *AuthService) Login(c *fiber.Ctx) error {
 	var req postgres.LoginRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -91,6 +101,14 @@ func (s *AuthService) SeedAdmin(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "Admin seeded. Password: admin123"})
 }
 
+// RefreshToken godoc
+// @Summary      Refresh Access Token
+// @Description  Dapatkan token baru menggunakan Refresh Token (Mekanisme via Header Authorization saat ini)
+// @Tags         Auth
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object} map[string]interface{}
+// @Router       /auth/refresh [post]
 func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
     userID := c.Locals("user_id").(string)
     user, err := s.UserRepo.GetUserByID(userID) 
@@ -112,10 +130,25 @@ func (s *AuthService) RefreshToken(c *fiber.Ctx) error {
     return c.JSON(fiber.Map{"token": t})
 }
 
+// Logout godoc
+// @Summary      Logout
+// @Description  Logout user (Client side clear token)
+// @Tags         Auth
+// @Security     BearerAuth
+// @Success      200  {object} map[string]interface{}
+// @Router       /auth/logout [post]
 func (s *AuthService) Logout(c *fiber.Ctx) error {
     return c.JSON(fiber.Map{"message": "Successfully logged out. Please remove token from client storage."})
 }
 
+// GetProfile godoc
+// @Summary      Get User Profile
+// @Description  Mendapatkan detail user yang sedang login beserta permissions
+// @Tags         Auth
+// @Security     BearerAuth
+// @Produce      json
+// @Success      200  {object} postgres.UserDetail
+// @Router       /auth/profile [get]
 func (s *AuthService) GetProfile(c *fiber.Ctx) error {
 	// Ambil user_id dari token (diset oleh middleware)
 	userID := c.Locals("user_id").(string)
